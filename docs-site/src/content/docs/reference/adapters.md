@@ -545,6 +545,11 @@ Use `liveModels: false` for a static catalog; Settings can switch between the tw
   multi-regions, and `<location>-aiplatform.googleapis.com` for a region such as `us-central1`.
 - Vertex AI and Antigravity retry a `429` only when the response carries retry evidence, such as a
   valid `Retry-After` header, and surface hard quota exhaustion immediately.
+- For Cloud Code Assist requests routed to `gemini-3.7-flash`, `gemini-3.8-flash`, or
+  `gemini-4-neon`, the proxy removes the three Claude Code / Claude Agent SDK identity-opener
+  paragraphs when each stands alone as its own paragraph (an opener that shares a paragraph with
+  other text stays in the prompt), and rewords two trigger sentences in the system prompt. These
+  generations otherwise respond with `429 RESOURCE_EXHAUSTED` to those phrases.
 - The shared tool-catalog guidance uses wording verified with Antigravity Gemini 3.8 Flash to
   avoid a prompt-triggered `429 RESOURCE_EXHAUSTED`. The available tools, argument constraints,
   and Codex code-mode helper rules stay the same. This does not suppress real quota errors.
@@ -1040,7 +1045,8 @@ configuration that names the old id is rewritten at startup.
 
 The model id you pick is a model family, and the reasoning effort picks the
 variant. With no effort, the family's own default variant is used: `swe-1-7`
-selects `swe-1-7-medium` and `swe-2` selects `swe-2-high`. An effort changes only
+selects `swe-1-7-medium`, `swe-2` selects `swe-2-high`, and `swe-2-1` (SWE-2.1)
+selects `swe-2-1-medium` even though the catalog's bare `swe-2-1` row is its Low variant. An effort changes only
 the effort and lands on the lowest variant at or above it, or the highest one
 below when nothing is above, so a missing rung never turns reasoning down:
 `swe-1-7` at `high` selects the Max row `swe-1-7`, `swe-2` at `low` selects
@@ -1053,7 +1059,10 @@ An id naming a variant your account has disabled is sent as named when the effor
 still lands on it, so the request fails with that variant's own error rather than
 quietly switching tier. Resolution never moves
 to another family. When the account catalog is unavailable, the effort is
-appended to the id instead.
+appended to the id instead, except on SWE-2 (Medium, High, Max) and SWE-2.1
+(Low, Medium, High, XHigh, Max), where it still rounds onto one of the family's
+own lanes and `fast`, or an id ending in `-lightning`, selects that lane's
+Ultrafast row.
 
 ## `zed`
 
